@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Turn any UI screenshot into clean, ready-to-use HTML and CSS code powered by AI.">
+    <title>Screenshot to Code Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 32 32" fill="none">
+                        <rect x="2" y="6" width="28" height="20" rx="3" stroke="currentColor" stroke-width="2" />
+                        <path d="M10 16l3 3 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div>
+                    <h1>Screenshot to Code</h1>
+                    <p class="brand-sub">Powered by SHIROONI</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+        <h2>Turn any screenshot into <span class="gradient-text">real code</span></h2>
+        <p class="hero-desc">Upload a UI screenshot and our AI will analyze every detail — colors, layout, text, icons —
+            and generate clean HTML & CSS you can use right away.</p>
+
+        <!-- How it works -->
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <p>Upload screenshot</p>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <p>AI analyzes UI</p>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <p>Get your code</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="main">
+
+        <!-- Upload Area -->
+        <section class="panel" id="upload-section">
+            <div class="panel-header">
+                <h3>📸 Upload your screenshot</h3>
+                <span class="panel-badge">Step 1</span>
+            </div>
+
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-visual">
+                    <div class="drop-ring">
+                        <svg viewBox="0 0 48 48" fill="none" class="drop-svg">
+                            <path d="M24 32V16M24 16l-6 6M24 16l6 6" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <rect x="4" y="4" width="40" height="40" rx="8" stroke="currentColor" stroke-width="2"
+                                stroke-dasharray="4 3" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="drop-title">Drop your image here</p>
+                <p class="drop-sub">or <label for="file-input" class="browse-link">browse from your computer</label></p>
+                <input type="file" id="file-input" accept="image/*" hidden>
+                <p class="drop-formats">PNG, JPG, GIF, WebP · up to 16 MB</p>
+            </div>
+
+            <!-- Preview -->
+            <div class="preview" id="preview" style="display:none;">
+                <div class="preview-top">
+                    <div class="preview-info">
+                        <span class="preview-dot"></span>
+                        <span>Image ready</span>
+                    </div>
+                    <button class="remove-btn" id="remove-btn">Remove</button>
+                </div>
+                <div class="preview-img-wrap">
+                    <img id="preview-img" src="" alt="Your screenshot">
+                </div>
+            </div>
+
+            <!-- Framework Selector -->
+            <div class="framework-selector" id="framework-selector">
+                <p class="fw-label">Choose output format:</p>
+                <div class="fw-options">
+                    <label class="fw-option active" id="fw-html">
+                        <input type="radio" name="framework" value="html-css" checked hidden>
+                        <div class="fw-icon">🌐</div>
+                        <div class="fw-text">
+                            <strong>HTML / CSS</strong>
+                            <span>Single .html file</span>
+                        </div>
+                    </label>
+                    <label class="fw-option" id="fw-react">
+                        <input type="radio" name="framework" value="react-tailwind" hidden>
+                        <div class="fw-icon">⚛️</div>
+                        <div class="fw-text">
+                            <strong>React / Tailwind</strong>
+                            <span>JSX component</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <button class="gen-btn" id="gen-btn" disabled>
+                <svg viewBox="0 0 20 20" fill="none" class="gen-icon">
+                    <path d="M10 2L3 10h4v8l7-8h-4V2z" fill="currentColor" />
+                </svg>
+                Generate Code
+            </button>
+        </section>
+
+        <!-- Output Area -->
+        <section class="panel" id="output-section" style="display:none;">
+            <div class="panel-header">
+                <h3>✨ Your generated code</h3>
+                <span class="panel-badge success">Step 2 — Done!</span>
+            </div>
+
+            <p class="output-hint" id="output-hint">Copy this code and paste it into an <code>.html</code> file — it works out of the
+                box. No extra files needed.</p>
+
+            <div class="code-wrap">
+                <div class="code-top">
+                    <div class="code-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span class="code-filename">generated-page.html</span>
+                    <button class="copy-btn" id="copy-btn">
+                        <svg viewBox="0 0 16 16" fill="none" class="copy-icon">
+                            <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                            <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"
+                                stroke="currentColor" stroke-width="1.5" />
+                        </svg>
+                        <span id="copy-text">Copy</span>
+                    </button>
+                </div>
+                <pre><code id="code-content"></code></pre>
+            </div>
+        </section>
+
+        <!-- History Panel -->
+        <section class="panel" id="history-section" style="display:none;">
+            <div class="panel-header">
+                <h3>🕘 History</h3>
+                <button class="clear-history-btn" id="clear-history-btn">Clear All</button>
+            </div>
+            <p class="history-hint">Your previous generations are saved locally in this browser.</p>
+            <div class="history-list" id="history-list">
+                <!-- dynamically populated -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Loading -->
+    <div class="overlay" id="loading" style="display:none;">
+        <div class="loader-box">
+            <div class="loader-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <p class="loader-title">Analyzing your screenshot…</p>
+            <p class="loader-sub">This usually takes 10-20 seconds</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Made with care for the Tech Fest 2.0</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
