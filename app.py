@@ -24,9 +24,14 @@ load_dotenv()
 # ============================================================
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass  # Will fail gracefully if dirs can't be created
 
 # Gemini API Key from environment variable (never hardcode in production!)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
@@ -35,7 +40,18 @@ if not GEMINI_API_KEY:
     print("\n⚠️  WARNING: GEMINI_API_KEY not set!")
     print("   Set it in .env file or as an environment variable.\n")
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Lazy client — created on first use so the app can start even without a key
+_client = None
+
+def get_client():
+    """Get or create the Gemini client (lazy initialization)."""
+    global _client
+    if _client is None:
+        key = os.environ.get('GEMINI_API_KEY', GEMINI_API_KEY)
+        if not key:
+            raise ValueError("GEMINI_API_KEY is not set. Add it in Render Environment Variables.")
+        _client = genai.Client(api_key=key)
+    return _client
 
 # Model
 MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3-flash-preview')
@@ -149,8 +165,7 @@ Generate now:"""
 def generate_code_from_screenshot(image_path, framework='html-css'):
     """Send screenshot to Gemini AI → get code back in chosen framework."""
 
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY is not set. Add it to your .env file.")
+    client = get_client()  # lazy init — won't crash on startup
 
     img = Image.open(image_path)
 
