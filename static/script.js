@@ -1,32 +1,49 @@
 /**
  * Screenshot to Code Generator — Frontend
- * Framework selection + localStorage history
+ * ============================================
+ * Pipeline: Upload → Detection → Parsing → Skeleton → AI Refinement
+ * With framework selection, code tabs, and localStorage history.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const dropZone      = document.getElementById('drop-zone');
-    const fileInput     = document.getElementById('file-input');
-    const preview       = document.getElementById('preview');
-    const previewImg    = document.getElementById('preview-img');
-    const removeBtn     = document.getElementById('remove-btn');
-    const genBtn        = document.getElementById('gen-btn');
-    const output        = document.getElementById('output-section');
-    const outputHint    = document.getElementById('output-hint');
-    const loading       = document.getElementById('loading');
-    const codeContent   = document.getElementById('code-content');
-    const copyBtn       = document.getElementById('copy-btn');
-    const copyText      = document.getElementById('copy-text');
+    // ── DOM Elements ──
+    const dropZone       = document.getElementById('drop-zone');
+    const fileInput      = document.getElementById('file-input');
+    const preview        = document.getElementById('preview');
+    const previewImg     = document.getElementById('preview-img');
+    const removeBtn      = document.getElementById('remove-btn');
+    const genBtn         = document.getElementById('gen-btn');
+    const output         = document.getElementById('output-section');
+    const outputHint     = document.getElementById('output-hint');
+    const loading        = document.getElementById('loading');
+    const loaderTitle    = document.getElementById('loader-title');
+    const loaderSub      = document.getElementById('loader-sub');
+    const codeContent    = document.getElementById('code-content');
+    const copyBtn        = document.getElementById('copy-btn');
+    const copyText       = document.getElementById('copy-text');
     const historySection = document.getElementById('history-section');
-    const historyList   = document.getElementById('history-list');
-    const clearHistBtn  = document.getElementById('clear-history-btn');
-    const codeFilename  = document.querySelector('.code-filename');
+    const historyList    = document.getElementById('history-list');
+    const clearHistBtn   = document.getElementById('clear-history-btn');
+    const codeFilename   = document.getElementById('code-filename');
+
+    // Pipeline Elements
+    const pipelineSection = document.getElementById('pipeline-section');
+    const pipelineBadge   = document.getElementById('pipeline-badge');
+    const detectionInfo   = document.getElementById('detection-info');
+    const detectionStats  = document.getElementById('detection-stats');
+    const detectionTiming = document.getElementById('detection-timing');
+    const codeTabs        = document.getElementById('code-tabs');
+    const tabSkeleton     = document.getElementById('tab-skeleton');
+    const tabRefined      = document.getElementById('tab-refined');
 
     // Framework selector
-    const fwOptions     = document.querySelectorAll('.fw-option');
+    const fwOptions = document.querySelectorAll('.fw-option');
 
     let selectedFile = null;
     let currentThumbnail = null;
     let selectedFramework = 'html-css';
+    let currentSkeletonCode = '';
+    let currentRefinedCode = '';
 
     const STORAGE_KEY = 'screenshot-to-code-history';
     const MAX_HISTORY = 20;
@@ -121,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         codeContent.innerHTML = esc(item.code);
         output.style.display = 'block';
+        codeTabs.style.display = 'none';
 
         // Update output hint + filename based on saved framework
         const fw = item.framework || 'html-css';
@@ -181,13 +199,112 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     function updateOutputUI(framework) {
         if (framework === 'react-tailwind') {
-            outputHint.innerHTML = 'This is a <code>React + Tailwind CSS</code> component. Paste it into your React project.';
+            outputHint.innerHTML = '👉 Add this code to your <code>App.jsx</code>';
             codeFilename.textContent = 'Component.jsx';
         } else {
-            outputHint.innerHTML = 'Copy this code and paste it into an <code>.html</code> file — it works out of the box.';
+            outputHint.innerHTML = '👉 Add this code in your <code>index.html</code>';
             codeFilename.textContent = 'generated-page.html';
         }
     }
+
+    // =========================================================
+    // Pipeline Stages UI
+    // =========================================================
+    const stageNames = ['Detect', 'Parse', 'Generate', 'Refine'];
+
+    function resetPipelineUI() {
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`stage-${i}`);
+            const label = document.getElementById(`stage-${i}-label`);
+            dot.className = 'stage-dot';
+            label.className = 'stage-label';
+            label.textContent = stageNames[i - 1];
+        }
+        pipelineBadge.textContent = 'Processing';
+        pipelineBadge.className = 'panel-badge';
+        detectionInfo.style.display = 'none';
+    }
+
+    function activateStage(stageNum) {
+        const dot = document.getElementById(`stage-${stageNum}`);
+        const label = document.getElementById(`stage-${stageNum}-label`);
+        dot.classList.add('active');
+        label.classList.add('active');
+    }
+
+    function completeStage(stageNum, timeMs) {
+        const dot = document.getElementById(`stage-${stageNum}`);
+        const label = document.getElementById(`stage-${stageNum}-label`);
+        dot.classList.remove('active');
+        dot.classList.add('done');
+        dot.textContent = '✓';
+        label.classList.remove('active');
+        label.classList.add('done');
+        if (timeMs !== undefined) {
+            label.textContent = `${stageNames[stageNum - 1]} (${timeMs}ms)`;
+        }
+    }
+
+    function showDetectionInfo(detection) {
+        if (!detection) return;
+
+        const components = detection.components || [];
+        const stages = detection.stages || [];
+        const totalTime = detection.total_time_ms || 0;
+
+        // Count component types
+        const counts = {};
+        components.forEach(c => {
+            counts[c.type] = (counts[c.type] || 0) + 1;
+        });
+
+        const typeIcons = {
+            button: '🔘',
+            input: '📝',
+            text: '📄',
+            image: '🖼️',
+            container: '📦'
+        };
+
+        // Build stats HTML
+        let statsHtml = `<div class="detection-stat"><span class="stat-icon">🔍</span> Total: <span class="stat-value">${components.length}</span></div>`;
+        for (const [type, count] of Object.entries(counts)) {
+            const icon = typeIcons[type] || '❓';
+            statsHtml += `<div class="detection-stat"><span class="stat-icon">${icon}</span> ${type}: <span class="stat-value">${count}</span></div>`;
+        }
+        detectionStats.innerHTML = statsHtml;
+
+        // Build timing HTML
+        let timingHtml = '';
+        stages.forEach(stage => {
+            timingHtml += `<span>${stage.name}: ${stage.duration_ms}ms</span>`;
+        });
+        timingHtml += `<span style="color:var(--primary);font-weight:600;">Total: ${totalTime}ms</span>`;
+        detectionTiming.innerHTML = timingHtml;
+
+        detectionInfo.style.display = 'block';
+
+        // Mark pipeline as complete
+        pipelineBadge.textContent = 'Complete';
+        pipelineBadge.className = 'panel-badge success';
+    }
+
+    // =========================================================
+    // Code Tabs (Skeleton vs Refined)
+    // =========================================================
+    tabSkeleton.addEventListener('click', () => {
+        tabSkeleton.classList.add('active');
+        tabRefined.classList.remove('active');
+        codeContent.innerHTML = esc(currentSkeletonCode);
+        codeFilename.textContent = selectedFramework === 'react-tailwind' ? 'Skeleton.jsx' : 'skeleton.html';
+    });
+
+    tabRefined.addEventListener('click', () => {
+        tabRefined.classList.add('active');
+        tabSkeleton.classList.remove('active');
+        codeContent.innerHTML = esc(currentRefinedCode);
+        updateOutputUI(selectedFramework);
+    });
 
     // =========================================================
     // Create thumbnail
@@ -248,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dropZone.style.display = 'block';
         genBtn.disabled = true;
         output.style.display = 'none';
+        pipelineSection.style.display = 'none';
     }
 
     // =========================================================
@@ -286,10 +404,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function simulatePipelineStages() {
+        // Simulate stage progression for visual feedback
+        // The real timing comes from the API response
+        for (let i = 1; i <= 4; i++) {
+            activateStage(i);
+            const delay = i === 4 ? 3000 : (i === 1 ? 800 : 200);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            if (i < 4) completeStage(i);
+        }
+    }
+
     genBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
+
+        // Show loading
         loading.style.display = 'flex';
         genBtn.disabled = true;
+
+        loaderTitle.textContent = 'Running detection pipeline…';
+        loaderSub.textContent = 'Detecting components → Building layout → Generating code';
+
+        // Show pipeline stages panel
+        pipelineSection.style.display = 'block';
+        resetPipelineUI();
+
+        // Start stage animation (non-blocking)
+        simulatePipelineStages();
 
         try {
             const form = new FormData();
@@ -316,6 +457,29 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update UI for framework
             updateOutputUI(selectedFramework);
 
+            if (data.detection) {
+                // Complete all pipeline stages
+                for (let i = 1; i <= 4; i++) {
+                    completeStage(i, data.detection.stages?.[i - 1]?.duration_ms);
+                }
+
+                // Show detection info
+                showDetectionInfo(data.detection);
+
+                // Store both versions
+                currentSkeletonCode = data.skeleton_code || '';
+                currentRefinedCode = generatedCode;
+
+                // Show code tabs
+                codeTabs.style.display = 'flex';
+                tabRefined.classList.add('active');
+                tabSkeleton.classList.remove('active');
+            } else {
+                currentSkeletonCode = '';
+                currentRefinedCode = generatedCode;
+                codeTabs.style.display = 'none';
+            }
+
             // Show code
             codeContent.innerHTML = esc(generatedCode);
             output.style.display = 'block';
@@ -333,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 toast('Code generated successfully! 🎉');
             }
 
-            // Save to history with framework info
+            // Save to history
             addToHistory(currentThumbnail, generatedCode, selectedFramework);
 
             setTimeout(() => output.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);

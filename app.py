@@ -1,20 +1,29 @@
 """
 Screenshot to Code Generator
-=============================
-Upload screenshot → Gemini AI scans it → Generates HTML + CSS or React + Tailwind code.
-Uses the google-genai SDK with Gemini 3 Flash model.
+====================================
+Upload screenshot → Component Detection → Structured JSON → Code Skeleton → Gemini Refinement → Final Output
+
+Pipeline:
+  Image → detector.py → parser.py → generator.py → ai_refiner.py → Final Code
+
+Uses OpenCV for component detection + Gemini for refinement only.
 """
 
 import os
 import uuid
-import re
 import time
+import cv2
 from collections import defaultdict
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
-from PIL import Image
 from google import genai
 from dotenv import load_dotenv
+
+# Import pipeline modules
+from pipeline.detector import detect_components
+from pipeline.parser import parse_layout
+from pipeline.generator import generate_skeleton
+from pipeline.ai_refiner import refine_with_ai
 
 # Load environment variables from .env file
 load_dotenv()
@@ -109,89 +118,82 @@ def allowed_file(filename):
 
 
 # ============================================================
-# AI Code Generation
+# Pipeline — Component Detection + Structured Generation
 # ============================================================
 
-PROMPT_HTML_CSS = """Analyze this UI screenshot carefully. Scan every detail:
-- Text, headings, paragraphs, labels, button text
-- Images/icons → use colored placeholder divs or inline SVG
-- Emojis → use actual Unicode emojis  
-- Layout structure: header, nav, hero, sections, cards, grids, footer
-- Colors: backgrounds, text, gradients, borders
-- Spacing: padding, margins, gaps
-- Buttons, links, inputs, forms
+def generate_code_pipeline(image_path, framework='html-css'):
+    """
+    Pipeline: Image → Detection → Parsing → Skeleton → AI Refinement.
 
-Generate a SINGLE COMPLETE HTML file that recreates this exact UI.
+    Returns a dict with:
+      - components: list of detected components
+      - layout: structured layout JSON
+      - skeleton_code: code before AI refinement
+      - final_code: AI-refined code
+      - pipeline_stages: timing info for each stage
+    """
+    stages = []
+    start_total = time.time()
 
-RULES:
-1. Start with <!DOCTYPE html>, end with </html>
-2. Output ONLY the HTML code — NO markdown fences, NO explanations
-3. ALL CSS inside a <style> tag in <head>
-4. Use Google Fonts <link> for modern typography
-5. Match exact colors, layout, spacing from the screenshot
-6. Use flexbox, grid, gradients, shadows, border-radius
-7. Make it responsive
-8. Add hover effects on buttons/links
+    # ── Stage 1: Component Detection (OpenCV) ──
+    t0 = time.time()
+    components = detect_components(image_path)
+    stages.append({
+        'name': 'Component Detection',
+        'duration_ms': int((time.time() - t0) * 1000),
+        'result': f'{len(components)} components found'
+    })
 
-Generate now:"""
+    # ── Stage 2: Layout Parsing ──
+    t0 = time.time()
+    # Get image dimensions for section assignment
+    img_cv = cv2.imread(image_path)
+    img_height = img_cv.shape[0] if img_cv is not None else 1000
+    layout = parse_layout(components, img_height)
+    stages.append({
+        'name': 'Layout Parsing',
+        'duration_ms': int((time.time() - t0) * 1000),
+        'result': f'{len(layout.get("sections", []))} sections identified'
+    })
 
-PROMPT_REACT_TAILWIND = """Analyze this UI screenshot carefully. Scan every detail:
-- Text, headings, paragraphs, labels, button text
-- Images/icons → use colored placeholder divs or inline SVG icons
-- Emojis → use actual Unicode emojis
-- Layout structure: header, nav, hero, sections, cards, grids, footer
-- Colors: backgrounds, text, gradients, borders
-- Spacing: padding, margins, gaps
-- Buttons, links, inputs, forms
+    # ── Stage 3: Skeleton Code Generation ──
+    t0 = time.time()
+    skeleton_code = generate_skeleton(layout, framework)
+    stages.append({
+        'name': 'Skeleton Generation',
+        'duration_ms': int((time.time() - t0) * 1000),
+        'result': f'{len(skeleton_code)} chars of {framework} code'
+    })
 
-Generate a SINGLE React functional component using Tailwind CSS that recreates this exact UI.
+    # ── Stage 4: AI Refinement (Gemini) ──
+    t0 = time.time()
+    try:
+        client = get_client()
+        final_code = refine_with_ai(client, MODEL, image_path, skeleton_code, layout, framework)
+        stages.append({
+            'name': 'AI Refinement',
+            'duration_ms': int((time.time() - t0) * 1000),
+            'result': 'Gemini refined successfully'
+        })
+    except Exception as e:
+        # If Gemini fails, fall back to skeleton code
+        final_code = skeleton_code
+        stages.append({
+            'name': 'AI Refinement',
+            'duration_ms': int((time.time() - t0) * 1000),
+            'result': f'Fallback to skeleton (AI error: {str(e)[:80]})'
+        })
 
-RULES:
-1. Output ONLY the JSX code — NO markdown fences, NO explanations
-2. Use a single default export: export default function Component() { return (...) }
-3. Use ONLY Tailwind CSS utility classes for ALL styling (no inline styles, no CSS files)
-4. Use proper Tailwind classes: flex, grid, bg-, text-, p-, m-, rounded-, shadow-, etc.
-5. Match exact colors using Tailwind color palette or arbitrary values like bg-[#1a1a2e]
-6. Use responsive Tailwind: sm:, md:, lg: prefixes
-7. Add hover effects: hover:bg-, hover:scale-, hover:shadow-, etc.
-8. Use semantic HTML elements inside JSX
-9. All className attributes must use double quotes
-10. Include all text content exactly as seen in the screenshot
-11. For icons, use simple inline SVGs or emoji characters
+    total_ms = int((time.time() - start_total) * 1000)
 
-Generate now:"""
-
-
-def generate_code_from_screenshot(image_path, framework='html-css'):
-    """Send screenshot to Gemini AI → get code back in chosen framework."""
-
-    client = get_client()  # lazy init — won't crash on startup
-
-    img = Image.open(image_path)
-
-    # Choose prompt based on framework
-    prompt = PROMPT_REACT_TAILWIND if framework == 'react-tailwind' else PROMPT_HTML_CSS
-
-    # Send image + prompt to Gemini
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[prompt, img]
-    )
-    code = response.text.strip()
-
-    # Remove markdown fences if present (html, jsx, javascript, tsx)
-    code = re.sub(r'^```(?:html|jsx|javascript|tsx|js)?\s*\n?', '', code, flags=re.IGNORECASE)
-    code = re.sub(r'\n?```\s*$', '', code)
-    code = code.strip()
-
-    # For HTML: validate it starts with <!DOCTYPE
-    if framework == 'html-css':
-        if not code.lower().startswith('<!doctype'):
-            match = re.search(r'(<!DOCTYPE html>.*?</html>)', code, re.DOTALL | re.IGNORECASE)
-            if match:
-                code = match.group(1)
-
-    return code
+    return {
+        'components': components,
+        'layout': layout,
+        'skeleton_code': skeleton_code,
+        'final_code': final_code,
+        'pipeline_stages': stages,
+        'total_time_ms': total_ms
+    }
 
 
 # ============================================================
@@ -214,6 +216,7 @@ def health():
 
 @app.route('/generate-code', methods=['POST'])
 def generate_code():
+    """Pipeline endpoint — Component Detection → Structured Generation → AI Refinement."""
     # Rate limit check
     ip = request.remote_addr or 'unknown'
     allowed, rate_info = check_rate_limit(ip)
@@ -238,18 +241,29 @@ def generate_code():
 
     try:
         framework = request.form.get('framework', 'html-css')
-        code = generate_code_from_screenshot(filepath, framework)
+
+        # Always use the detection pipeline
+        pipeline_result = generate_code_pipeline(filepath, framework)
+        result = {
+            'success': True,
+            'generated_code': pipeline_result['final_code'],
+            'skeleton_code': pipeline_result['skeleton_code'],
+            'framework': framework,
+            'detection': {
+                'components': pipeline_result['components'],
+                'layout': pipeline_result['layout'],
+                'stages': pipeline_result['pipeline_stages'],
+                'total_time_ms': pipeline_result['total_time_ms']
+            }
+        }
 
         # Record this successful request for rate limiting
         record_request(ip)
         _, updated_info = check_rate_limit(ip)
+        result['rate_limit'] = updated_info
 
-        return jsonify({
-            'success': True,
-            'generated_code': code,
-            'framework': framework,
-            'rate_limit': updated_info
-        })
+        return jsonify(result)
+
     except Exception as e:
         print(f'[Error]: {e}')
         return jsonify({'error': f'Generation failed: {str(e)}'}), 500
@@ -269,6 +283,7 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
 
     print(f"\n⚡ Screenshot to Code Generator")
+    print(f"  Pipeline: Image → Detection → Parsing → Skeleton → AI Refinement")
     print(f"  Open:  http://127.0.0.1:{port}")
     print(f"  Model: {MODEL}")
     print(f"  API:   {'✅ Key set' if GEMINI_API_KEY else '❌ Missing'}")

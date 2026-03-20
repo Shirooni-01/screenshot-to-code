@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Turn any UI screenshot into clean, ready-to-use HTML and CSS code powered by AI.">
+    <meta name="description" content="Turn any UI screenshot into clean, ready-to-use code using AI-powered component detection and structured code generation.">
     <title>Screenshot to Code Generator</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -26,7 +26,7 @@
                 </div>
                 <div>
                     <h1>Screenshot to Code</h1>
-                    <p class="brand-sub">Powered by SHIROONI</p>
+                    <p class="brand-sub">Powered by SHIROONI · Component Detection Pipeline</p>
                 </div>
             </div>
         </div>
@@ -35,24 +35,34 @@
     <!-- Hero -->
     <section class="hero">
         <h2>Turn any screenshot into <span class="gradient-text">real code</span></h2>
-        <p class="hero-desc">Upload a UI screenshot and our AI will analyze every detail — colors, layout, text, icons —
-            and generate clean HTML & CSS you can use right away.</p>
+        <p class="hero-desc">Upload a UI screenshot and our pipeline will detect components, build a structured layout,
+            generate skeleton code, and refine it with AI — giving you clean, structured output.</p>
 
         <!-- How it works -->
         <div class="steps">
             <div class="step">
                 <div class="step-num">1</div>
-                <p>Upload screenshot</p>
+                <p>Upload</p>
             </div>
             <div class="step-line"></div>
             <div class="step">
                 <div class="step-num">2</div>
-                <p>AI analyzes UI</p>
+                <p>Detect</p>
             </div>
             <div class="step-line"></div>
             <div class="step">
                 <div class="step-num">3</div>
-                <p>Get your code</p>
+                <p>Structure</p>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <p>Generate</p>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-num">5</div>
+                <p>Refine</p>
             </div>
         </div>
     </section>
@@ -121,6 +131,8 @@
                 </div>
             </div>
 
+
+
             <button class="gen-btn" id="gen-btn" disabled>
                 <svg viewBox="0 0 20 20" fill="none" class="gen-icon">
                     <path d="M10 2L3 10h4v8l7-8h-4V2z" fill="currentColor" />
@@ -129,22 +141,66 @@
             </button>
         </section>
 
+        <!-- Pipeline Stages (shown during generation) -->
+        <section class="panel pipeline-panel" id="pipeline-section" style="display:none;">
+            <div class="panel-header">
+                <h3>🔬 Pipeline Stages</h3>
+                <span class="panel-badge" id="pipeline-badge">Processing</span>
+            </div>
+            <div class="pipeline-stages" id="pipeline-stages">
+                <div class="pipeline-stage">
+                    <div class="stage-dot" id="stage-1">1</div>
+                    <span class="stage-label" id="stage-1-label">Detect</span>
+                </div>
+                <div class="stage-arrow">→</div>
+                <div class="pipeline-stage">
+                    <div class="stage-dot" id="stage-2">2</div>
+                    <span class="stage-label" id="stage-2-label">Parse</span>
+                </div>
+                <div class="stage-arrow">→</div>
+                <div class="pipeline-stage">
+                    <div class="stage-dot" id="stage-3">3</div>
+                    <span class="stage-label" id="stage-3-label">Generate</span>
+                </div>
+                <div class="stage-arrow">→</div>
+                <div class="pipeline-stage">
+                    <div class="stage-dot" id="stage-4">4</div>
+                    <span class="stage-label" id="stage-4-label">Refine</span>
+                </div>
+            </div>
+
+            <!-- Detection Info (populated after completion) -->
+            <div class="detection-info" id="detection-info" style="display:none;">
+                <div class="detection-stats" id="detection-stats">
+                    <!-- dynamically populated -->
+                </div>
+                <div class="detection-timing" id="detection-timing">
+                    <!-- dynamically populated -->
+                </div>
+            </div>
+        </section>
+
         <!-- Output Area -->
         <section class="panel" id="output-section" style="display:none;">
             <div class="panel-header">
                 <h3>✨ Your generated code</h3>
-                <span class="panel-badge success">Step 2 — Done!</span>
+                <span class="panel-badge success">Done!</span>
             </div>
 
-            <p class="output-hint" id="output-hint">Copy this code and paste it into an <code>.html</code> file — it works out of the
-                box. No extra files needed.</p>
+            <p class="output-hint" id="output-hint">👉 Add this code in your <code>index.html</code></p>
+
+            <!-- Code Tabs (Skeleton vs Refined) -->
+            <div class="code-tabs" id="code-tabs" style="display:none;">
+                <button class="code-tab" id="tab-skeleton" data-tab="skeleton">🦴 Skeleton Code</button>
+                <button class="code-tab active" id="tab-refined" data-tab="refined">✨ AI Refined</button>
+            </div>
 
             <div class="code-wrap">
                 <div class="code-top">
                     <div class="code-dots">
                         <span></span><span></span><span></span>
                     </div>
-                    <span class="code-filename">generated-page.html</span>
+                    <span class="code-filename" id="code-filename">generated-page.html</span>
                     <button class="copy-btn" id="copy-btn">
                         <svg viewBox="0 0 16 16" fill="none" class="copy-icon">
                             <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5" />
@@ -178,8 +234,8 @@
             <div class="loader-dots">
                 <span></span><span></span><span></span>
             </div>
-            <p class="loader-title">Analyzing your screenshot…</p>
-            <p class="loader-sub">This usually takes 10-20 seconds</p>
+            <p class="loader-title" id="loader-title">Analyzing your screenshot…</p>
+            <p class="loader-sub" id="loader-sub">Running component detection pipeline</p>
         </div>
     </div>
 
