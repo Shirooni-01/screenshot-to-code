@@ -3,7 +3,7 @@ services:
     name: screenshot-to-code
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload --log-level debug
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload --log-level info
     envVars:
       - key: GEMINI_API_KEY
         sync: false

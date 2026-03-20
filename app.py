@@ -110,7 +110,8 @@ def handle_500(e):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    return jsonify({'error': str(e)}), 500
+    print(f'[Unhandled Error]: {e}')
+    return jsonify({'error': 'Something went wrong. Please try again.'}), 500
 
 
 def allowed_file(filename):
